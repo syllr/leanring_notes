@@ -1,5 +1,12 @@
 #!/usr/bin/env bash
 
-name="yutaoyutaoyutao123"
-echo ${name##*yutao}
+for index in {1..10}; do
+    echo $index
+done
+
+for index in `seq 1 10`; do
+    echo $index
+done
+
+array={1..10}
 
