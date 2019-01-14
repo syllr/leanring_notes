@@ -1,3 +1,6 @@
 #!/usr/bin/env bash
-index=10*10
-echo $index
+function my_fun() {
+    echo "hello world"
+}
+
+my_fun
