@@ -2,6 +2,8 @@ package designPattern.mediatorPattern;
 
 /**
  * 列表框
+ *
+ * @author yutao
  */
 public class List extends Component {
     @Override

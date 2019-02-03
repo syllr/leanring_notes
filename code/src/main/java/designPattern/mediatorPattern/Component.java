@@ -1,5 +1,8 @@
 package designPattern.mediatorPattern;
 
+/**
+ * @author yutao
+ */
 public abstract class Component {
     protected Mediator mediator;
 

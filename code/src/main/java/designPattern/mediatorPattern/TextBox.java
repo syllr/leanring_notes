@@ -2,6 +2,8 @@ package designPattern.mediatorPattern;
 
 /**
  * 文本框
+ *
+ * @author yutao
  */
 public class TextBox extends Component {
     @Override

@@ -1,5 +1,8 @@
 package designPattern.mediatorPattern;
 
+/**
+ * @author yutao
+ */
 public class ConcreteMediator extends Mediator {
     public Button addButton;
     public List list;

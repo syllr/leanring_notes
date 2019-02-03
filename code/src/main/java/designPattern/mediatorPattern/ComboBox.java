@@ -2,6 +2,8 @@ package designPattern.mediatorPattern;
 
 /**
  * 组合框
+ *
+ * @author yutao
  */
 public class ComboBox extends Component {
     @Override

@@ -1,5 +1,8 @@
 package designPattern.mediatorPattern;
 
+/**
+ * @author yutao
+ */
 public class Client {
     public static void main(String[] args) {
         //定义中介者对象
