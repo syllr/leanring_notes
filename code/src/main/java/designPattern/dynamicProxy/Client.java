@@ -9,9 +9,5 @@ public class Client {
 
         InvocationHandler handler = new DynamicProxy(realSubject);
 
-        var subject = (Subject)Proxy.newProxyInstance(handler.getClass().getClassLoader(), realSubject.getClass().getInterfaces(), handler);
-        System.out.println(subject.getClass().getName());
-        subject.rent();
-        subject.hello("world");
     }
 }
