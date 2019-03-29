@@ -6,7 +6,7 @@
 ## 在vim中执行shell命令的几种方式
 
 ### :!command
-* 使用!来执行shell命令，这样写双击tab不会有提示
+* 使用!来执行shell命令
 * 可以运行:!bash来启动一个bash shell并执行命令，不需要退出vim（这种办法会在归中有乱码问题，不要用）
 * 可以使用:terminal直接开一个终端来执行shell命令
 ### 执行shell命令的一些选项
