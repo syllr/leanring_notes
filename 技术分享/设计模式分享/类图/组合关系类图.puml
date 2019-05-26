@@ -1,0 +1,11 @@
+@startuml
+class Company{
+
+}
+
+class Department{
+
+}
+
+Company *--> Department
+@enduml

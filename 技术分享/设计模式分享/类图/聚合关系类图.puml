@@ -1,0 +1,16 @@
+@startuml
+class Car{
+
+}
+
+class Engine{
+
+}
+
+class Tyre{
+
+}
+
+Car o--> Engine
+Car o--> Tyre
+@enduml

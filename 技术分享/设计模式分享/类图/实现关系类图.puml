@@ -1,0 +1,15 @@
+@startuml
+skinparam classAttributeIconSize 0
+class Car{
+    +跑()
+}
+
+class Benz{
+    -轮胎
+    -发动机
+    -其他属性
+    +跑()
+}
+
+Benz ..|> Car : Benz实现了Car接口
+@enduml

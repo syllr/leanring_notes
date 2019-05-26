@@ -1,0 +1,9 @@
+@startuml
+class Person{
+}
+
+class Computer{
+}
+
+Person ..> Computer : 人依赖计算机
+@enduml

@@ -1,0 +1,11 @@
+@startuml
+class 企鹅{
+    -气候
+}
+
+class 气候{
+
+}
+
+企鹅 --> 气候
+@enduml
