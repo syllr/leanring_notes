@@ -11,7 +11,7 @@ public class LazySingleton1 {
     /**
      * 私有的构造器
      */
-    private LazySingleton1(){
+    private LazySingleton1() {
     }
 
     public static LazySingleton1 getInstance() {

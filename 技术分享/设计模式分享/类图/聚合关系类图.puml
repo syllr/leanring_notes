@@ -1,16 +1,11 @@
 @startuml
-class Car{
+class 人群{
 
 }
 
-class Engine{
+class 人{
 
 }
 
-class Tyre{
-
-}
-
-Car o--> Engine
-Car o--> Tyre
+Car 人 --> 人群
 @enduml
