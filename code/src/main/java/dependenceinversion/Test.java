@@ -6,8 +6,6 @@ package dependenceinversion;
  */
 public class Test {
     public static void main(String[] args) {
-        Custom custom = new Custom();
-        custom.studyFECourse();
-        custom.studyPythonCourse();
+        
     }
 }
