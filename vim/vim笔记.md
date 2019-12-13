@@ -14,3 +14,9 @@
 * % !command 会将全部文本通过管道传到命令中，并且将命令的结果重写掉文件的内容
 * 起始行号,结束行号 !command 和上面一样，只不过选择了一定的区域
 * 起始行号，结束行号（或则%）w !command 会将选中的区域的文本当作命令执行并显示结果，不会改变当前编辑的文件的内容
+
+vim8异步插件
+Plug 'skywind3000/asyncrun.vim'
+"使用vim异步插件和im-select实现在从insert模式下面退出的时候，自动切换到英文输入法
+"inoremap <silent> <C-c> <ESC>:<C-u>AsyncRun im-select com.apple.keylayout.ABC<CR>
+"inoremap <silent> <ESC> <ESC>:<C-u>AsyncRun im-select com.apple.keylayout.ABC<CR>
