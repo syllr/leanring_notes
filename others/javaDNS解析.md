@@ -4,3 +4,5 @@
 
 [anylocalNameServer](https://my.oschina.net/xiaominmin/blog/1598818)
 [ping主机名或者域名的过程](https://www.cnblogs.com/u013533289/p/11629045.html)
+
+最新的没有装蓝灯的备份 12-14，5点47分
