@@ -57,7 +57,7 @@ ResponseEntity<String> response = restTemplate.postForEntity(url, request, Strin
 HttpHeaders headers = new HttpHeaders();
 
 headers.setContentType(MediaType.APPLICATION_JSON);
-//有时候要设置编码，否则会报apiToken参数错误
+//有时候要设置编码，否则要报错
 headers.setContentType(MediaType.parseMediaType("application/json; charset=utf-8"));
 
 headers.setAccept(Lists.newArrayList(MediaType.APPLICATION_JSON));
