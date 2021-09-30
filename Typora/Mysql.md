@@ -355,9 +355,23 @@ Mysql将 redo log 的写入拆成了两个步骤：prepare 和 commit，这就�
 
 当发生crash的时候两阶段提交是怎么保证crash-safe的
 
-* crash发生在redo log prepare之前：只是修改了内存数据，没有记录redo log和bin log，事务没有提交，crash之后重新从磁盘读取数据，内存数据丢失，相当于事物没有提交直接回滚了。
+* crash发生在redo log prepare之前：只是修改了内存数据，没有记录redo log和bin log，事务没有提交，crash之后重新从磁盘读取数据，内存数据丢失，因为没有记录redo log和bin log，所以mysql什么也不用做。
+
 * crash发生在redo log prepare之后，写bin log之前：修改了内存的数据，同时记录了redo log，但是没有记录bin log，crash之后读取redo log发现事务没有提交，进行回滚（由于没有写bin log，回滚就是删除redo log而已）
-* crash发生在redo log prepare之后，写bin log之后，但是redo log没有commit：修改了内存的数据，同时记录了redo log，也记录了bin log，crash之后读取redo log发现事务没有提交，进行回滚（**因为写了bin log，回滚就是在bin log后面再加上一条记录，比如原来的bin log是set id = id + 1，后面加的bin log就是set id = id -1，保持同一行数据的前后一致性**）
+
+* crash发生在redo log prepare之后，写bin log之后，但是redo log没有commit：修改了内存的数据，同时记录了redo log，也记录了bin log，crash之后读取redo log发现事务没有提交，会先去检查bin log的完整性，根据bin log的完整性分为两种情况
+
+  * binlog完整：对redo log进行提交
+  * binlog不完整：进行回滚（**因为写了bin log，回滚就是在bin log后面再加上一条记录，比如原来的bin log是set id = id + 1，后面加的bin log就是set id = id -1，保持同一行数据的前后一致性**）
+
+  > 问题1：Mysql怎么知道bin log是完整的
+  >
+  > 一个事务的Bin log是有完整格式的，statement格式的Bin log，最后会有COMMIT，Row格式的Bin log，最后会有一个XID event
+  >
+  > 问题2：Redo log和Bin log是怎么关联起来的
+  >
+  > 它们有一个共同的字段XID，相当于Redo log和Bin log的外键关联，当崩溃恢复的时候，会按照顺序扫描redo log
+
 * crash发生在redo log commit之后：crash之后读取redo log发现事务已经提交，直接重放redo log（redo log记录的是mysql Page的变更信息，**或者说是内存和磁盘之间的数据差**）
 
 ![img](https://raw.githubusercontent.com/syllr/image/main/uPic/20210927163651niM5fs.png)
@@ -390,10 +404,10 @@ relay log很多方面都跟binary log差不多
 
 ### UNDO log与REDO log
 
-当数据发生改变，UNDO log会记录下数据的改变值（新值，也就是改变之后的值），而当事务执行发生异常，需要回滚数据的时候需要把数据设置为以前的值（旧值），UNDO log就是用来记录旧值的，可以看到
+当数据发生改变，REDO log会记录下数据的改变值（新值，也就是改变之后的值），而当事务执行发生异常，需要回滚数据的时候需要把数据设置为以前的值（旧值），UNDO log就是用来记录旧值的，可以看到
 
-* undo log存储的是改变之后的记录，只关心未来
-* redo log存储的是改变之前的旧值只关心过去
+* REDO log存储的是改变之后的记录，只关心未来
+* UNDO log存储的是改变之前的旧值只关心过去
 
 ### UNDO log数据格式（版本链）
 
@@ -448,8 +462,6 @@ InnoDB为每一个事务构造了一个数组`m_ids`用于保存一致性视图�
 - `min_trx_id`：m_ids 里最小的值
 - `max_trx_id`：生成 ReadView 时 InnoDB 将分配给下一个事务的 ID 的值（事务 ID 是递增分配的，越后面申请的事务 ID 越大）
 - `creator_trx_id`：当前创建 ReadView 事务的 ID
-
-> 其实就是对这个数组排序最小的事务ID是低水位，最大的事务ID是高水位
 
 假设表中已经被之前的事务 A（id = 100）插入了一条行记录（id = 1, username = "Jack", age = 18），如图所示：
 
@@ -1014,6 +1026,8 @@ Next-key lock是RR级别的默认加锁单位，Next-lock = 间隙锁+行锁，�
 
 也就说**在 InnoDB 事务中，行锁是在需要的时候才加上的，但并不是不需要了就立刻释放，而是要等到事务结束时才释放。这个就是两阶段锁协议。**
 
+> 关于两阶段锁，mysql还有一个优化，实际上在rc模式下，不满足条件的记录锁会被提前释放。
+
 # 索引
 
 ## 索引的结构
@@ -1037,12 +1051,12 @@ B树最大的区别就是M阶的B树因为一个节点有M个元素，所以树�
 
 ## B+树和B树的区别
 
-![img](https://raw.githubusercontent.com/syllr/image/main/uPic/2021092402064420T44l.png)
+![preview](https://raw.githubusercontent.com/syllr/image/main/uPic/20210930092058LX0WHU.jpeg)
 
 和B树做对比，在结构上B+树有两点主要的不同
 
 * B+树的非叶子结点不存储数据，也就是说B+树的非叶子结点只有索引的左右
-* B+树所有的叶子结点之间有指针做关联，类似于一个单向链表
+* B+树所有的叶子结点之间有指针做关联，类似于一个链表（这个看情况，有的B+树的实现是单向链表，有的是双向链表，**Mysql的索引就是双向链表B+树**）
 
 从上面两个结构的不同，我们可以总结出为什么Mysql InnoDB的索引用B+树这种数据结构
 
