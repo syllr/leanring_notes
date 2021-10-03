@@ -302,5 +302,3 @@ Dubbo 负载均衡策略提供下列四种方式：
   RpcContext.getContext().setAttachment() 
   //调接口时，必须是A直接到B，如果A没有直接到B，而是先到C，再由C到B，那么在B里getAttachment()获取不到值
   ```
-
-  
