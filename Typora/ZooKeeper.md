@@ -26,15 +26,13 @@ ZooKeeper的数据模型是层次模型（树行模型）。层次模型常见�
 1. 文件系统的树形结构便于表达数据之间的层次关系
 2. 文件系统的树行结构便于为不同的应用分配独立的命名空间（namespace）
 
-<img src="/Users/yutao/Library/Application Support/typora-user-images/image-20210930215530514.png" alt="image-20210930215530514" style="zoom: 50%;" />
+<img src="https://raw.githubusercontent.com/syllr/image/main/uPic/20211008211639u0j4yl.png" alt="image-20211008211633207" style="zoom:50%;" />
 
 ZooKeeper的层次模型称作data tree。Data tree的每个节点叫做znode。**不同于文件系统，每个节点都可以保存数据**。每个节点都有一个版本号（version）。版本从0开始计数。
 
-<img src="/Users/yutao/Library/Application Support/typora-user-images/image-20210930215832689.png" alt="image-20210930215832689" style="zoom:50%;" />
+<img src="https://raw.githubusercontent.com/syllr/image/main/uPic/20211008211909RK0mVw.png" alt="image-20211008211859555" style="zoom:50%;" />
 
-上图的data tree中有两个子树，一个用于应用1(/app1)和另一个用于应用2(/app2)。
-
-应用1的子树实现了一个简单的组成员协议：每个客户端进程pi创建一个znode p_i 在/app1下，只要/app1/p_i存在就代表进程pi在正常运行
+上图的data tree中有两个子树，一个用于应用1(/app1)和另一个用于应用2(/app2)。应用1的子树实现了一个简单的组成员协议：每个客户端进程pi创建一个znode p_i 在/app1下，只要/app1/p_i存在就代表进程pi在正常运行
 
 ## data tree接口
 
@@ -59,7 +57,7 @@ znode可以是顺序性的，当生成一个顺序性节点之后，这个节点
 
 # ZooKeeper架构
 
-![image-20210930222209685](https://raw.githubusercontent.com/syllr/image/main/uPic/20210930222211Oa3xtd.png)
+<img src="https://raw.githubusercontent.com/syllr/image/main/uPic/20210930222211Oa3xtd.png" alt="image-20210930222209685" style="zoom: 33%;" />
 
 应用使用ZooKeeper客户端库来使用ZooKeeper服务。ZooKeeper客户端负责和ZooKeeper集群的交互。ZooKeeper集群可以有两种模式
 
@@ -68,7 +66,7 @@ znode可以是顺序性的，当生成一个顺序性节点之后，这个节点
 
 ## Session
 
-![image-20210930222525063](https://raw.githubusercontent.com/syllr/image/main/uPic/20210930222526pdiqwV.png)
+<img src="https://raw.githubusercontent.com/syllr/image/main/uPic/20210930222526pdiqwV.png" alt="image-20210930222525063" style="zoom: 33%;" />
 
 ZooKeeper客户端和ZooKeeper集群中的某个节点创建一个session。客户端可以主动关闭session。另外如果ZooKeeper节点没有在Session关联的timeout时间内收到客户端消息的话，ZooKeeper节点也会关闭session。另外ZooKeeper客户端库如果发现连接的ZooKeeper出错，会自动的和其他ZooKeeper节点建立连接
 
@@ -250,7 +248,7 @@ ZAB协议负责到ZooKeeper的选举和主从复制逻辑，详见《分布式-Z
 
 使用路径为/queue的znode下的节点表示队列中的元素。/queue下的节点都是顺序持久化znode。这些znode名字的后缀数字表示来对应队列元素在队列中的位置。znode名字后缀数字越小，对应队列元素在对立中的位置越靠前
 
-<img src="/Users/yutao/Library/Application Support/typora-user-images/image-20211001092623091.png" alt="image-20211001092623091" style="zoom:67%;" />
+<img src="https://raw.githubusercontent.com/syllr/image/main/uPic/202110082127072wNB2v.png" alt="image-20211008212702501" style="zoom:50%;" />
 
 ### 队列的offer方法
 
@@ -301,7 +299,7 @@ Curator有一个扩展叫做curator-x-discovery。curator-x-discovery基于ZooKe
 * 如果我们认为我们的服务实例从集群中断掉就不可用了，我们就应该创建临时性的znode
 * 否则创建持久性znode
 
-<img src="/Users/yutao/Library/Application Support/typora-user-images/image-20211001154446354.png" alt="image-20211001154446354" style="zoom:67%;" />
+<img src="https://raw.githubusercontent.com/syllr/image/main/uPic/20211008213005lJWjiR.png" alt="image-20211008212959969" style="zoom:50%;" />
 
 ## 使用ZooKeeper进行分布式任务分发
 

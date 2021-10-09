@@ -2,15 +2,15 @@
 
 ## 架构
 
-![RocketMq架构图](https://gitee.com/syllr/images/raw/master/uPic/rocketMQ/RocketMq%E6%9E%B6%E6%9E%84%E5%9B%BE.png)
+![RocketMq架构图](https://raw.githubusercontent.com/syllr/image/main/uPic/20211008213030Na20wX.png)
 
 ## 路由中心NameServer
 
 ### NameServer作用
 
-NameServer 中维护着 Producer 集群、Broker 集群、 Consumer 集群的服务状态。通过定时发送心跳数据包进行维护更新各个服务的状态
+NameServer 中维护着 Producer集群、Broker集群、 Consumer集群的服务状态。通过定时发送心跳数据包进行维护更新各个服务的状态
 
-当有新的Producer 加入集群时，通过上报自身的服务信息，及获取各个 Broker Master的信息（Broker 地址、Topic、Queue 等信息），这样就可以决定把对应的Topic消息存储到那个Broker、哪个Queue 上。Consumer 同理
+当有新的Producer 加入集群时，通过上报自身的服务信息，及获取各个 Broker Master的信息（Broker 地址、Topic、Queue 等信息），这样就可以决定把对应的Topic消息存储到哪个Broker、哪个Queue 上。Consumer 同理
 
 NameServer 可以部署多个，多个NameServer互相独立，不会交换消息。Producer、Broker、Consumer 启动的时候都需要指定多个 NameServer，各个服务的信息会同时注册到多个 NameServer 上，从而能到达高可用
 
@@ -36,15 +36,15 @@ nameServer的最大的特点就是各个nameServer之间是互不通信的，无
 
 ### NameServer如何保证数据的最终一致
 
-NameServer作为一个名称服务，需要提供服务注册、服务剔除、服务发现这些基本功能，但是NameServer节点之间并不通信，在某个时刻各个节点数据可能不一致的情况下，如何保证客户端可以最终拿到正确的数据。下面分别从路由注册、路由剔除，路由发现三个角度进行介绍
+NameServer作为一个名称服务，需要提供服务注册、服务剔除、服务发现这些基本功能，但是NameServer节点之间并不通信，在某个时刻各个节点数据可能不一致的情况下，如何保证客户端可以最终拿到正确的数据。下面分别从服务注册、服务下线，路由发现三个角度进行介绍
 
-#### 路由注册
+#### 服务注册
 
-因为rocketMq中的各个nameServer之间是不通信的，为了保证NameServer中的数据一致，RocketMQ路由注册是通过 Broker与 NameServer的心跳功能实现的。 Broker启动时向集群中**所有的**NameServ巳r发送心跳语句，每隔30s向集群中**所有**NameServer 发送心跳包，NameServer收到Broker心跳包时会更新brokerLiveTable缓存中BrokerLivelnfo的 lastUpdateTimestamp，然后NameServer每隔10s扫描brokerLiveTable，如果连续120s没 有收到心跳包，NameServer将移除该 Broker的路由信息同时关闭 Socket连接
+因为rocketMq中的各个nameServer之间是不通信的，为了保证NameServer中的数据一致，RocketMQ路由注册是通过 Broker与 NameServer的心跳功能实现的。 Broker启动时向集群中**所有的**NameServer发送心跳包，然后每隔30s向集群中**所有**NameServer发送心跳包，NameServer收到Broker心跳包时会更新brokerLiveTable缓存中BrokerLivelnfo中对应的Broker的lastUpdateTimestamp，然后NameServer每隔10s扫描brokerLiveTable，如果连续120s没 有收到心跳包，NameServer将移除该 Broker的路由信息同时关闭 Socket连接
 
-NameServer在处理心跳包的时候，存在多个Broker同时操作一张Broker表，为了防止并发修改Broker表导致不安全，路由注册操作引入了ReadWriteLock读写锁，这个设计亮点允许多个消息生产者并发读，保证了消息发送时的高并发，但是同一时刻NameServer只能处理一个Broker心跳包，多个心跳包串行处理。这也是读写锁的经典使用场景，即读多写少
+NameServer在处理心跳包的时候，存在多个Broker同时操作一张Broker表，为了防止并发修改Broker表导致不安全，路由注册操作引入了ReadWriteLock读写锁，这个设计亮点允许多个Broker并发读，保证了消息发送时的高并发，但是同一时刻NameServer只能处理一个Broker心跳包，多个心跳包串行处理。这也是读写锁的经典使用场景，即读多写少
 
-#### 路由删除
+#### 服务下线
 
 Broker 每隔 30s向集群里面所有NameServer发送一个心跳包，心跳包中包含 BrokerId、Broker地址、Broker名称、 Broker所属集群名称、Broker关联的 FilterServer列表。 但是如果 Broker若机 ，NameServer无法收到心跳包，此时 NameServer如何来剔除这些失效的Broker呢? Name Server会每隔10s扫描brokerLiveTable状态表，如果BrokerLive的lastUpdateTimestamp的时间戳距当前时间超过 120s，则认为Broker失效，移除该 Broker, 关闭与Broker连接，并同时更新topicQueueTable、 brokerAddrTable、 brokerLiveTable、 filterServerTable
 
@@ -54,14 +54,14 @@ RocktMQ有两个触发点来触发路由删除
 
 2. Broker在正常被关闭的情况下，会执行 unregisterBroker指令。 由于不管是何种方式触发的路由删除，路由删除的方法都是一样的，就是从 topicQueueTable、 brokerAddrTable、 brokerLiveTable、 filterServerTable删除与该Broker相关的信息
 
-#### 路由发现
+#### 路由发现（服务发现）
 
 路由发现是客户端的行为，这里的客户端主要说的是生产者和消费者。具体来说：
 
-- 对于生产者，可以发送消息到多个Topic，因此一般是在发送第一条消息时，才会根据Topic获取从NameServer获取路由信息。（这个以前我遇到过，我们的qa环境的topic是不用申请的，但是必须要生产者发送一条消息后才会新建，如果生产者没有发送第一条消息，消费者去注册订阅这个topic的时候会报错）
-- 对于消费者，订阅的Topic一般是固定的，所在在启动时就会拉取
+- 对于生产者，可以发送消息到多个Topic，因此一般是在发送第一条消息时，才会根据Topic从NameServer获取路由信息。（这个以前我遇到过，我们的qa环境的topic是不用申请的，但是必须要生产者发送一条消息后才会新建，如果生产者没有发送第一条消息，消费者去注册订阅这个topic的时候会报错）
+- 对于消费者，订阅的Topic一般是固定的，所以在启动时就会拉取
 
-RocketMQ路由发现是非实时的，当Topic路由出现变化后，NameServer不主动推送给客户端 ，而是由客户端定时拉取主题最新的路由 。根据主题名称拉取路由信息的命令编码为: GET ROUTEINTO BY_TOPIC，对于生产者，那种本地缓存有信息但是客户端调用不通的broker，生产者会在一段时间内将其从可调用列表中排除，然后调用下一个broker发送消息，而对于消费者，因为一个消费者的是通过负载均衡来确定消费的queue的，所以如果broker宕机，如果该broker没有从则改的消息内容将无法消费，以前消费这个broker的消费者，会在下一次消费者执行负载均衡的时候去消费另一个broker中的消息
+RocketMQ路由发现是非实时的，当Topic路由出现变化后，NameServer不主动推送给客户端 ，而是由客户端定时拉取主题最新的路由 。根据主题名称拉取路由信息的命令编码为: GET ROUTEINTO BY_TOPIC，对于生产者，那种本地缓存有信息但是客户端调用不通的broker，生产者会在一段时间内将其从可调用列表中排除，然后调用下一个broker发送消息，而对于消费者，因为一个消费者的是通过负载均衡来确定消费的queue的，所以如果broker宕机（且从节点没有变成主节点）则该的boker的消息将无法被消费，以前消费这个broker的消费者，会在下一次消费者执行负载均衡的时候去消费另一个broker中的消息
 
 ## TOPIC
 
@@ -73,7 +73,7 @@ RocketMQ的队列是有读写权限的区分的，设置读写权限的区分主
 
 * 负载均衡
 
-  如果因为某种原因造成一个broker的消息堆积（但是别的broker中的队列是正常的，因为一个队列只会被一个消费者消费，这样会造成这个消费者的压力过大）可以手动将这个broker上的所有的队列的写权限关闭，让别的服务器分担压力，这也是一个临时解决堆积的办法，但是问题的本质肯定还是要找到为什么进行了负载均衡之后还会出现有的服务器积压过多，有的服务器正常的情况。
+  如果因为某种原因造成一个broker的消息堆积（但是别的broker中的队列是正常的，因为一个队列只会被一个消费者消费，这样会造成这个消费者的压力过大）可以手动将这个broker上的所有的队列的写权限关闭，让别的服务器分担压力，这也是一个临时解决堆积的办法。
 
 * 弹性缩容
 
@@ -85,7 +85,7 @@ RocketMQ的队列是有读写权限的区分的，设置读写权限的区分主
 
 ![RocketMq自动创建topic流程](https://gitee.com/syllr/images/raw/master/uPic/rocketMQ/RocketMq%E8%87%AA%E5%8A%A8%E5%88%9B%E5%BB%BAtopic%E6%B5%81%E7%A8%8B.png)
 
-如果开启自动创建topic的功能，会在producer第一次发送mq的时候在第一次发送的时候在改broker中创建该topic，因为broker每隔30S都会向集群中所有的nameServer发送同步信息如果这30S中producer没有持续发送消息让所有的broker都接受到消息并且在自己本地创建对应的topic，那么在30S之后等nameServer中的信息更新之后，该topic就只会存在第一次发送的broker中了
+如果开启自动创建topic的功能，会在producer第一次发送mq的时候在第一次发送的时候在该broker中创建该topic，因为broker每隔30S都会向集群中所有的nameServer发送同步信息如果这30S中producer没有持续发送消息让所有的broker都接受到消息并且在自己本地创建对应的topic，那么在30S之后等nameServer中的信息更新之后，该topic就只会存在第一次发送的broker中了
 
 #### 手动创建
 
@@ -103,7 +103,7 @@ RocketMQ的队列是有读写权限的区分的，设置读写权限的区分主
 
 ### 3. 消息发送
 
-消息发送之前会为每条消息分配一个全局唯一的**Message Key** （也可以用户自己定义，与之相对应的是**MessageID** ，MessageID是每个消息存储到broker中的时候broker根据该消息的偏移量和brokerId拼起来的一个唯一标识，可以通过messageID直接查到broker和偏移量），如果消息体默认超过 4K(compressMsgBodyOverHowmuch), 会对消息体采用zip压缩，并设置消息的系统标记为 MessageSysFlag.CO孔1PRESSED_FLAG。如果是事务 Prepared消息，则设置消息的系统标记为 MessageSysFlag.TRANSACTION_ PREPARED TYPE。发送的方法有同步，异步，单向三种，异步的话需要指定回掉函数
+消息发送之前会为每条消息分配一个全局唯一的**Message Key** （也可以用户自己定义，与之相对应的是**MessageID** ，MessageID是每个消息存储到broker中的时候broker根据该消息的偏移量和brokerId拼起来的一个唯一标识，可以通过messageID直接查到broker和偏移量），如果消息体默认超过 4K(compressMsgBodyOverHowmuch), 会对消息体采用zip压缩，并设置消息的系统标记为 MessageSysFlag.COMPRESSED_FLAG。如果是事务 Prepared消息，则设置消息的系统标记为 MessageSysFlag.TRANSACTION_ PREPARED TYPE。发送的方法有同步，异步，单向三种，异步的话需要指定回掉函数
 
 如果是同步的话会通过配置确定发送失败重试次数，如果是异步或者单向的话只会重试一次
 
@@ -111,7 +111,7 @@ RocketMQ的队列是有读写权限的区分的，设置读写权限的区分主
 
 ### RocketMQ存储架构
 
-RocketMQ主要存储的文件包括Commitlog文件、 ConsumeQueue文件、 IndexFile文件还有一个checkpoint文件。 RocketMQ将所有主题的消息存储在同一个文件中，确保消息发送时顺序写文件，尽最大的能力确保消息发送的高性能与高吞吐量 。 但由于消息中间件一般是基于消息主题的订阅机制，这样便给按照消息主题检索消息带来了极大的不便 。 为了提高消息消费的效率， RocketMQ 引入了ConsumeQueue消息队列文件，每个消息主题包含多个消息消费队列，每一个消息队列有一个消息文件 。 IndexFile 索引文件，其主要设计理念就是为了加速 消息的检索性能，根据消息的属性快速从 Commitlog 文件中检索消息 。 RocketMQ是一款 高性能的消息中间件，存储部分的设计是核心，存储的核心是IO访问性能
+RocketMQ主要存储的文件包括Commitlog文件、 ConsumeQueue文件、 IndexFile文件还有一个checkpoint文件。 RocketMQ将所有主题的消息存储在同一个文件中，确保消息发送时顺序写文件，尽最大的能力确保消息发送的高性能与高吞吐量。但由于消息中间件一般是基于消息主题的订阅机制，这样便给按照消息主题检索消息带来了极大的不便。为了提高消息消费的效率， RocketMQ 引入了ConsumeQueue消息队列文件，每个消息主题包含多个消息消费队列，每一个消息队列有一个消息文件。IndexFile 索引文件，其主要设计理念就是为了加速消息的检索性能，根据消息的属性快速从Commitlog文件中检索消息。RocketMQ是一款高性能的消息中间件，存储部分的设计是核心，存储的核心是IO访问性能
 
 ![RocketMq消息存储架构图](https://gitee.com/syllr/images/raw/master/uPic/rocketMQ/RocketMq%E6%B6%88%E6%81%AF%E5%AD%98%E5%82%A8%E6%9E%B6%E6%9E%84%E5%9B%BE.png)
 
@@ -143,7 +143,7 @@ RocketMQ使用MappedFile、MappedFileQueue来封装存储文件
 
 * MappedFile:就是每一个磁盘上的CommitLog文件的内存映射，消息字节写入Page Cache缓存区（commit方法），或者原子性地将消息持久化的刷盘（flush方法）
 
-* transientStorePool：TransientStorePool: 短暂的存储池。 RocketMQ单独创建一个MappedByteBuffer内存 缓存池，用来临 时存储数据，数据先写入该 内存映射中，然后由commit线程定时将数据从该内存复制到与目的物理文件对应的内存映射中 
+* transientStorePool：TransientStorePool，短暂的存储池。RocketMQ单独创建一个MappedByteBuffer内存缓存池，用来临时存储数据，数据先写入该内存映射中，然后由commit线程定时将数据从该内存复制到与目的物理文件对应的内存映射中 
 
   > 可以通过配置启用transientStorePool，transientStorePool初始化的时候使用了mlock()方法，将当前堆外内存一直锁定在内存中，避免被进程将内存交换到磁盘 ，同时也提供了一种读写分离的机制，写往transientStorePool中写，读就直接读取MappedFile（即page cache）以空间换时间，减少了并发竞争
 
@@ -153,21 +153,21 @@ rocketMq提供了三种刷盘策略，一种同步的两种异步的，同步即
 
 ### 实时更新消息消费队列与索引文件
 
-消息消费队列文件、消息属性索引文件都是基于 CommitLog文件构建的 ， 当消息生产 者提交的消息存储在Commitlog文件中 ， ConsumeQueue、 IndexFile需要及时更新，否则消息无法及时被消费，根据消息属性查找消息也会出现较大延迟。 RocketMQ通过开启一个线 程 ReputMessageService来准实时转发 CommitLog文件更新事件，相应的任务处理器根据 转发的消息及时更新ConsumeQueue、 IndexFile文件，ReputMessageService每次间隔1毫秒，就回去读取CommitLog文件中所有待推送的消息然后然后调用相应方法分别构建consumeQueue中的条目和IndexFile
+消息消费队列文件、消息属性索引文件都是基于 CommitLog文件构建的 ， 当消息生产者提交的消息存储在Commitlog文件中 ， ConsumeQueue、 IndexFile需要及时更新，否则消息无法及时被消费，根据消息属性查找消息也会出现较大延迟。 RocketMQ通过开启一个线程 ReputMessageService来准实时转发 CommitLog文件更新事件，相应的任务处理器根据转发的消息及时更新ConsumeQueue、 IndexFile文件，ReputMessageService每次间隔1毫秒，就会去读取CommitLog文件中所有待推送的消息然后然后调用相应方法分别构建consumeQueue中的条目和IndexFile
 
 ### 过期文件删除
 
-由于RocketMQ操作 CommitLog、 ConsumeQueue文件是基于内存映射机制并在启动 的时候会加载 commitlog、 ConsumeQueue目录下的所有文件，为了避免内存与磁盘的浪 费，不可能将消息永久存储在消息服务器上，所以需要引人一种机制来删除己过期的文件。 RocketMQ顺序写Commitlog文件 、 ConsumeQueue文件，所有写操作全部落在最后一个CommitLog或ConsumeQueue文件上，之前的文件在下一个文件创建后将不会再被更新 。 RocketMQ清除过期文件的方法是 :如果非当前写文件在一定时间间隔内没有再次被更新， 则认为是过期文件，可以被删除， RocketMQ 不会关注这个文件上的消息是否全部被消费 。 默认每个文件的过期时间为 72 小时 ，通过在Broker配置文件中设置fileReservedTime来改变过期时间，单位为小时。
+由于RocketMQ操作 CommitLog、 ConsumeQueue文件是基于内存映射机制并在启动的时候会加载 commitlog、 ConsumeQueue目录下的所有文件，为了避免内存与磁盘的浪费，不可能将消息永久存储在消息服务器上，所以需要引入一种机制来删除己过期的文件。 RocketMQ顺序写Commitlog文件 、 ConsumeQueue文件，所有写操作全部落在最后一个CommitLog或ConsumeQueue文件上，之前的文件在下一个文件创建后将不会再被更新 。 RocketMQ清除过期文件的方法是：如果非当前写文件在一定时间间隔内没有再次被更新， 则认为是过期文件，可以被删除， RocketMQ 不会关注这个文件上的消息是否全部被消费 。 默认每个文件的过期时间为 72 小时 ，通过在Broker配置文件中设置fileReservedTime来改变过期时间，单位为小时。
 
 ## 消息消费
 
-消息消费以组的模式开展，一个消费组内可以包含多个消费者，每一个消费组可订阅 多个主题，消费组之间有集群模式与广播模式两种消费模式 。集群模式，主题下的同一条 消息只允许被其中一个消费者消费 。 广播模式，主题下的同一条消息将被集群内的所有消费者消费一次。消息服务器与消费者之间的消息传送也有两种方式:推模式、拉模式 。所谓的拉模式，是消费端主动发起拉消息请求，而推模式是消息到达消息服务器后，推送给消息消费者 。 RocketMQ 消息推模式的实现基于拉模式，在拉模式上包装一层，一个拉取任务完成后开始下一个拉取任务 。消息队列负载机制遵循一个通用的思想 : 一个消息队列同一时间 只允许被一个消费者消费（实际上在特殊情况下一个队列会被多个消费者消费，这算是个坑），一个消费者可以消费多个消息队列 。
+消息消费以组的模式开展，一个消费组内可以包含多个消费者，每一个消费组可订阅多个主题，消费组之间有集群模式与广播模式两种消费模式 。集群模式，主题下的同一条 消息只允许被其中一个消费者消费 。 广播模式，主题下的同一条消息将被集群内的所有消费者消费一次。消息服务器与消费者之间的消息传送也有两种方式:推模式、拉模式 。所谓的拉模式，是消费端主动发起拉消息请求，而推模式是消息到达消息服务器后，推送给消息消费者 。 RocketMQ 消息推模式的实现基于拉模式，在拉模式上包装一层，一个拉取任务完成后开始下一个拉取任务。消息队列负载机制遵循一个通用的思想:一个消息队列同一时间只允许被一个消费者消费（实际上在特殊情况下一个队列会被多个消费者消费，这算是个坑），一个消费者可以消费多个消息队列。
 
-RocketMQ 支持局部顺序消息消费，也就是保证同一个消息队列上的消息顺序消费。 不支持消息全局顺序消费， 如果要实现某一主题的全局顺序消息消费， 可以将该主题的队列 数设置为 1，牺牲高可用性。
+RocketMQ 支持局部顺序消息消费，也就是保证同一个消息队列上的消息顺序消费。 不支持消息全局顺序消费， 如果要实现某一主题的全局顺序消息消费， 可以将该主题的队列数设置为1，牺牲吞吐量。
 
 RocketMQ 支持两种消息过滤模式:表达式(TAG、 SQL92)与类过滤模式。
 
-消息拉模式，主要是由客户端手动调用消息拉取 API，而消息推模式是消息服务器主动将消息推送到消息消费端，推模式是基于拉模式的所以直接通过推模式研究RocketMQ 消息消费实现。
+消息拉模式，主要是由客户端手动调用消息拉取API，而消息推模式是消息服务器主动将消息推送到消息消费端，推模式是基于拉模式的所以直接通过推模式研究RocketMQ消息消费实现。
 
 ### 消费者启动
 
@@ -176,7 +176,7 @@ RocketMQ 支持两种消息过滤模式:表达式(TAG、 SQL92)与类过滤模�
 - 订阅目标topic
 - 订阅重试主题消息。RocketMQ消息重试是以消费组为单位，而不是主题，消息重试主题名为 %RETRY% + 消费组名。消费者在启动的时候会自动订阅该主题，参与该主题的消息队列负载。
 
-1. 初始化消息进度。如果消息消费是集群模式，那么消息进度保存在 Broker 上; 如果是广播模式，那么消息消费进度存储在消费端。
+1. 初始化消息进度。如果消息消费是集群模式，那么消息进度保存在Broker上; 如果是广播模式，那么消息消费进度存储在消费端。
 2. 根据是否是顺序消费，创建消费端消费线程服务。ConsumeMessageService 主要负责消息消费，内部维护一个线程池。
 
 ### 消息拉取
@@ -289,7 +289,7 @@ PullMessageService 从服务端拉取到消息后，会根据消息对应的消�
 
   * 生产者重试
 
-    > 要看发送消息的方法，如果是同步的就从TimesWhenSendFailed配置中获取重试次数，如果是移步发送的话就只重试1次
+    > 要看发送消息的方法，如果是同步的就从TimesWhenSendFailed配置中获取重试次数，如果是异步发送的话就只重试1次
 
   * 消费者重试
 

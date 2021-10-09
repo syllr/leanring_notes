@@ -302,8 +302,6 @@ JVM会把这个Class文件加载到方法区中，主要这么几个部分
 * JDK1.7之前及以前字符串常量池中存放的是字符串常量
 * JDK1.7之后字符串常量池中存放的是指定字符串的引用
 
-
-
 ### 方法区的实现
 
 #### 永久代和元空间
@@ -661,9 +659,105 @@ Hot Spot虚拟机为我们提供了很多垃圾收集器，因为JVM堆是分为
 
 # 类加载
 
-## 反射
+Java虚拟机把描述类的数据从Class文件加载到内存，并对数据进行校验、转换解析和初始化，最 终形成可以被虚拟机直接使用的Java类型，这个过程被称作虚拟机的类加载机制。
+
+与那些在编译时需要进行连接的语言不同，在Java语言里面，类型的加载、连接和初始化过程都是在程序运行期间完成 的，这种策略让Java语言进行提前编译会面临额外的困难，也会让类加载时稍微增加一些性能开销， 但是却为Java应用提供了极高的扩展性和灵活性，Java天生可以动态扩展的语言特性就是依赖运行期动 态加载和动态连接这个特点实现的
+
+## 延迟加载
+
+JVM 运行并不是一次性加载所需要的全部类的，它是按需加载，也就是延迟加载。程序在运行的过程中会逐渐遇到很多不认识的新类，这时候就会调用 ClassLoader 来加载这些类。加载完成后就会将 Class 对象存在 ClassLoader 里面，下次就不需要重新加载了。
+
+* 使用new关键字实例化对象的时候
+* 读取或设置一个类型的静态字段(被final修饰、已在编译期把结果放入常量池的静态字段除外)的时候。
+* 调用一个类型的静态方法的时候。
+* 使用java.lang.reflect包的方法对类型进行反射调用的时候，如果类型没有进行过初始化，则需 要先触发其初始化。
+* 当初始化类的时候，如果发现其父类还没有进行过初始化，则需要先触发其父类的初始化。
+* 当虚拟机启动时，用户需要指定一个要执行的主类(包含main()方法的那个类)，虚拟机会先初始化这个主类。
+* 当一个接口中定义了JDK 8新加入的默认方法(被default关键字修饰的接口方法)时，如果有 这个接口的实现类发生了初始化，那该接口要在其之前被初始化。
+
+## ClassLoader分类
+
+JVM 中内置了三个重要的 ClassLoader，分别是 BootstrapClassLoader、ExtensionClassLoader 和 AppClassLoader。
+
+* BootstrapClassLoader：`c++`编写，加载`java`核心库 `java.*`,构造`ExtClassLoader`和`AppClassLoader`。由于引导类加载器涉及到虚拟机本地实现细节，开发者无法直接获取到启动类加载器的引用，所以不允许直接通过引用进行操作
+
+* ExtensionClassLoader：负责加载 JVM 扩展类，比如 swing 系列、内置的 js 引擎、xml 解析器 等等，这些库名通常以 javax 开头，它们的 jar 包位于 JAVA_HOME/lib/ext/*.jar 中，有很多 jar 包。
+* AppClassLoader：才是直接面向我们用户的加载器，它会加载 Classpath 环境变量里定义的路径中的 jar 包和目录。我们自己编写的代码以及使用的第三方 jar 包通常都是由它来加载的。
+
+* URLClassLoader：JDK内置了一个 URLClassLoader，用户只需要传递规范的网络路径给构造器，就可以使用 URLClassLoader 来加载远程类库了。URLClassLoader 不但可以加载远程类库，还可以加载本地路径的类库，取决于构造器中不同的地址形式。ExtensionClassLoader 和 AppClassLoader 都是 URLClassLoader 的子类，它们都是从本地文件系统里加载类库。
+
+AppClassLoader 可以由 ClassLoader 类提供的静态方法 getSystemClassLoader() 得到，它就是我们所说的「系统类加载器」，我们用户平时编写的类代码通常都是由它加载的。当我们的 main 方法执行的时候，这第一个用户类的加载器就是 AppClassLoader。
+
+## ClassLoader 传递性
+
+程序在运行过程中，遇到了一个未知的类，它会选择哪个 ClassLoader 来加载它呢？虚拟机的策略是使用调用者 Class 对象的 ClassLoader 来加载当前未知的类。何为调用者 Class 对象？就是在遇到这个未知的类时，虚拟机肯定正在运行一个方法调用（静态方法或者实例方法），这个方法挂在哪个类上面，那这个类就是调用者 Class 对象。前面我们提到每个 Class 对象里面都有一个 classLoader 属性记录了当前的类是由谁来加载的。
+
+因为 ClassLoader 的传递性，所有延迟加载的类都会由初始调用 main 方法的这个 ClassLoader 全全负责，它就是 AppClassLoader。
+
+## 双亲委派
+
+当一个ClassLoader要加载类的时候不管自己能不能加载该对象，都会先把这个任务委托给他的上级类加载器，递归这个操作，如果上级的类加载器没有加载，自己才会去加载这个类
+
+<img src="https://raw.githubusercontent.com/syllr/image/main/uPic/202110090150356Tr5MP.jpg" alt="img" style="zoom: 67%;" />
+
+1. 防止重复加载同一个`.class`。通过委托去向上面问一问，加载过了，就不用再加载一遍。保证数据安全。
+2. 保证核心`.class`不能被篡改。通过委托方式，不会去篡改核心`.class`，即使篡改也不会去加载，即使加载也不会是同一个`.class`对象了。不同的加载器加载同一个`.class`也不是同一个`Class`对象。这样保证了`Class`执行安全。
+
+## 自定义加载器
+
+ClassLoader 里面有三个重要的方法 loadClass()、findClass() 和 defineClass()。
+
+loadClass() 方法是加载目标类的入口，它首先会查找当前 ClassLoader 以及它的双亲里面是否已经加载了目标类，如果没有找到就会让双亲尝试加载，如果双亲都加载不了，就会调用 findClass() 让自定义加载器自己来加载目标类。ClassLoader 的 findClass() 方法是需要子类来覆盖的，不同的加载器将使用不同的逻辑来获取目标类的字节码。拿到这个字节码之后再调用 defineClass() 方法将字节码转换成 Class 对象。
+
+loadClass，findClass，defineClass，findLoadedClass
+
+* loadClass()：就是主要进行类加载的方法，默认的双亲委派机制就是在这个方法中（要破坏双亲委派就重写这个方法）
+
+* findClass()：根据名称或位置加载.class字节码（ClassLoader中默认实现是抛出异常，子类必须要重写这个方法，ExtClassLoader和AppClassLoader都是继承的URLClassLoader），想要自己加载字节码就重写这个方法
+* definClass()：把字节码转化为Class，底层是一个native 方法
+* findLoadedClasss：如果已经加载过的Class就返回，没有返回null
+
+### Class.forName() 和 loadClass() 加载类的区别
+
+ loadClass() 方法加载类不会对其进行初始化，而通过Class.forName() 方法加载类会对其进行初始化（会执行类里面的静态代码块）。
 
 ## 动态代理
+
+### 静态代理
+
+静态代理需要修改代码，比如现在有一个计算器接口类Cal，里面有一个add()方法，现在有一个计算器的实例concreteCal，使用静态代理的一般模式为，新增一个代理类calProxy，实现Cal接口，同时在内部持有一个concreteCal的引用
+
+```java
+/**
+ * @author yutao create on 2021/10/9 10:33 上午
+ */
+public class ProxyCal implements Cal {
+    //持有要代理的类
+    private ConcreteCal concreteCal = new ConcreteCal();
+
+    @Override
+    public int add(int x, int y) {
+        System.out.println("代理操作");
+        return concreteCal.add(x, y);
+    }
+}
+```
+
+### 动态代理
+
+动态代理不需要我们修改源代码重新编译，一般使用两种方式来进行代理
+
+* 利用Java的反射(Proxy类)，JDK动态代理
+
+  > JDK是基于反射机制，生成一个实现代理接口的匿名类,然后重写方法,实现方法的增强.它生成类的速度很快，但是运行时因为是基于反射，调用后续的类操作会很慢.
+  >
+  > 而且他是只能针对接口编程的，这个更多的是设计上的考量
+
+* 动态修改字节码，CGlib动态代理
+
+  > CGLIB是基于继承机制,继承被代理类,所以方法不要声明为final,然后重写父类方法达到增强了类的作用. 它底层是基于asm第三方框架,是对代理对象类的class文件加载进来,通过修改其字节码生成子类来处理. 生成类的速度慢,但是后续执行类的操作时候很快.
+  >
+  >  可以针对类和接口
 
 # JAVA对象（Object）
 
@@ -705,3 +799,30 @@ jvm对象头信息是与对象自身定义的数据无关的额外存储的信�
 
 1. Mark Word：存储对象的锁信息，hashCode以及GC次数，具体可以查看《高并发-互斥锁》章节，有详细描述
 2. 元数据指针：指向该对象对应的Class数据的指针
+
+# Java方法调用
+
+所谓的绑定是指在代码运行期间，将方法或者变量的符号引用替换为直接引用（就是地址）的过程
+
+绑定分为静态绑定和动态绑定
+
+Java 虚拟机中的静态绑定指的是在解析时便能够直接识别目标方法的情况，而动态绑定则指的是需要在运行过程中根据调用者的动态类型来识别目标方法的情况。
+
+* 像静态方法，被final修饰的方法，对象实例的private方法，Interface的default方法都可以在解析的时候直接被确定，因为这些方法的地址在运行期间是确定的，这种方法叫非虚方法
+* Interface中的public方法，普通对象的public方法（可以被子类重写的方法），这些方法具有多肽性，在调用的时候可能会有多个地址，这种方法被称为虚方法；
+
+所以可以重新做一下总结，调用非虚方法的是静态绑定，调用虚方法的是动态绑定
+
+那么怎么调用非虚方法和虚方法呢，首先从字节码中对方法的调用说起。Java的bytecode中方法的调用实现分为四种指令：
+
+* invokevirtual为最常见的情况，包含virtual dispatch机制；
+
+* invokerspecial是作为对private和构造方法的调用，绕过了virtual dispatch;
+* invokeinterface的实现跟invokevirtual类似；
+* invokestatic是对静态方法的调用；
+
+invokerspecial，invokestatic，都是静态绑定，只需要去Class文件中的常量池查找对应的方法，然后在通过对象引用调用就行了
+
+invokevirtual，invokeinterface是动态绑定，调用的是虚函数，比如调用一个接口Car的drive方法，可能这个接口有多个实现，在运行的过程中不知道是BMWCar，还是BYDCar，所以需要在运行的时候先判断这个对象实例的具体类型，然后通过这个具体类型去找到对象中的方法地址
+
+从对象中找到方法地址的一个方法就是从头到尾遍历这个对象的内存，分析内存，然后找到对应实例方法的地址，这个过程比较耗费时间，为了加速这一过程，JVM会在每一个对象内部存一个方法表，里面存储着这个对象实例的方法和地址（包括从父类继承来的），这样就可以快速的找到虚方法对应的地址，本质上是空间换时间的操作。
