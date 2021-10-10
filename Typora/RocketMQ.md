@@ -362,11 +362,9 @@ PullMessageService 从服务端拉取到消息后，会根据消息对应的消�
 
 * RocketMQ主从同步架构中，如果主服务器宕机，从服务器会接管消息消费，此时消息消费进度如何保持，当主服务器恢复后，消息消费者是从主拉取消息还是从从服务器拉取，主从服务器之间的消息消费进度如何同步？
 
-  > 在消费者消费的时候会主动向消费的broker更新自己的消费进度（集群模式下），然后不管这个broker是主还是从，都会向其他的broker更新消息的消费进度
+  > 消费者消费的时候会定时把自己的消费进度同步到broker中，无论是从主拉取还是从从拉取，只要主没有宕机，都会向主同步消费进度，如果主宕机之后，消费者从从节点拉取数据，就会把消费进度同步到从节点，其实无论是Broker的主还是从节点崩溃，只要消费者和Broker没有同时崩溃，消费者内存中还有最新的消费进度，只要消费者的消费进度和Broker一同步，就算是因为Broker崩溃而丢失的进度也能弥补回来。
 
 ## 消息事务
-
-![消息事务流程图](https://gitee.com/syllr/images/raw/master/uPic/rocketMQ/%E6%B6%88%E6%81%AF%E4%BA%8B%E5%8A%A1%E6%B5%81%E7%A8%8B%E5%9B%BE.png)
 
 ###  RocketMQ事务流程概要
 
@@ -375,10 +373,10 @@ RocketMQ实现事务消息主要分为两个阶段：正常事务的发送及提
 
 - 正常事务发送与提交阶段
 
-1. 生产者发送一个半消息给MQServer（半消息是指消费者暂时不能消费的消息）
+1. 客户端（生产者）发送一个`半消息`给MQServer（半消息是指消费者暂时不能消费的消息）
 2. 服务端响应消息写入结果，半消息发送成功
-3. 开始执行本地事务
-4. 根据本地事务的执行状态执行Commit或者Rollback操作
+3. 客户端开始执行本地事务
+4. 客户端根据本地事务的执行状态执行MQ的Commit或者Rollback操作
 
 - 事务信息的补偿流程
 
@@ -386,6 +384,16 @@ RocketMQ实现事务消息主要分为两个阶段：正常事务的发送及提
 2. 生产者收到确认回查请求后，检查本地事务的执行状态
 3. 根据检查后的结果执行Commit或者Rollback操作
    补偿阶段主要是用于解决生产者在发送Commit或者Rollback操作时发生超时或失败的情况。
+
+总结：如果两个服务之间需要保持操作的原子性，比如serviceA和serviceB都有各自的事务要执行
+
+<img src="https://raw.githubusercontent.com/syllr/image/main/uPic/2021100922343235BF92.jpg" alt="preview" style="zoom:67%;" />
+
+* serviceA发送一个`半消息（用来表示serviceA的事务执行结果）`给MQServer，MQServer响应消息写入结果，半消息发送成功
+* serviceA执行本地事务
+* serviceA根据本地事务的执行状态执行MQ的commit或者Rollback操作
+* 当serviceA执行了MQ的commit操作之后
+* serviceB接收到serviceA的mq之后，执行serviceB的本地事务，如果serviceB的本地事务执行失败，需要业务兜底（比如转人工，或者job扫描重试）
 
 ### RocketMQ事务流程关键
 

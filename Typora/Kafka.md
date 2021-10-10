@@ -51,7 +51,7 @@
 
 ![Kafka拓扑结构图](https://gitee.com/syllr/images/raw/master/uPic/kafka/Kafka%E6%8B%93%E6%89%91%E7%BB%93%E6%9E%84%E5%9B%BE.png)
 
-从拓扑图可以看出Kafka的broker之间是互为主备的，因为Kafka的master/slave是基于partition维度的，一个 Broker 即可以是某个分区的主副本，又可以是其他分区的从副本。作为对比RocketMQ是基于broker维度的。
+从拓扑图可以看出Kafka的broker之间是互为主备的，因为Kafka的master/slave是基于partition维度的，一个 Broker 即可以是某个分区的主副本，又可以是其他分区的从副本（Kafka有一个副本因子的配置，比如配置为3，每个分区都会有3个副本）。作为对比RocketMQ是基于broker维度的。
 
 ## 消息队列的两种模式
 
