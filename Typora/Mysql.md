@@ -587,8 +587,6 @@ row.trx_id > ReadView.max_trx_id
 
 这种读取到另一个事务未提交的数据的现象就是脏读(Dirty Read)。
 
-
-
 ![img](https://raw.githubusercontent.com/syllr/image/main/uPic/20210927214140uwRrZN.jpg)
 
 Mysql的RU（读未提交会有脏读）其他更高的隔离级别不会有脏读
@@ -1264,3 +1262,39 @@ Mysql没有自带的分片解决方案，所以要进行mysql的分片一般有�
 
 * 客户端代码添加分片逻辑
 * 走代理中间件，让代理中间件进行分片
+
+# 性能优化
+
+使用explain命令对查询语句进行分析，explain主要有三个字段主要注意
+
+* type：扫描方式，是走的索引扫描，还是全表扫描，如果是索引扫描，那么是范围扫描还是等值扫描
+* rows：扫描过的行数
+* Extra：额外的优化信息
+
+## Type
+
+MySQL的官网解释非常简洁，只用了3个单词：**连接类型**(the join type)。它描述了找到所需数据使用的扫描方式。
+
+- **system**：系统表，少量数据，往往不需要进行磁盘IO；
+- **const**：常量连接，唯一索引或者主键（主键其实也是唯一索引），能确定单表中的数据只有一个的；
+- **eq_ref**：主键索引(primary key)或者非空唯一索引(unique not null)等值扫描，但是必须要是连表查询；const和eq_ref都是走唯一索引，但是const是单表查询，eq_ref是联表查询（join）
+- **ref**：非主键非唯一索引等值扫描；
+- **range**：范围扫描；
+- **index**：索引树扫描；
+- **ALL**：全表扫描(full table scan)；
+
+## Extra
+
+在扫描索引的过程中Mysql可能还会用到其他的优化，extra里面会展示这些信息
+
+* using index：代表使用了覆盖索引，不回表
+
+* using where：表数据库引擎返回结果后mysql server还会再次筛选这个筛选的过程是需要回表的
+
+  如果只有字段a有索引的话，`select * from table where a = 0 and b = 0`，innodb会首先把a这颗索引树中，a=0的记录找到，然后一条条返回给执行器，返回给执行器的其实是记录的主键，执行器再通过主键回表查询真实的记录，查到所有a=0所有真实记录之后，再判断记录里面的b=0，来进行过滤，最后把结果返回客户端
+
+* using condition index：代表使用二级索引不够还要回表，但回表之前会过滤此二级索引能过滤的where条件
+
+  (a,b )两个字段建立联合索引，如果是语句`select * from table where a = 0 and b = 0`会直接走联合索引，如果是`select * from table where a = 0 and b > 0`，这种范围查询是只能走一部分联合索引（因为a,b的联合索引相当于是建立了一个a的索引和一个a,b的索引，如果b是范围查询，只能走到a这个索引上来），innodb会将所有a=0的记录找到，然后再内存中只留下b>0的记录，然后返回给执行器，执行器回表查到真实记录。
+
+  using condition index相比于using where利用索引减少了回表的次数
