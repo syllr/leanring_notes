@@ -373,10 +373,11 @@ RocketMQ实现事务消息主要分为两个阶段：正常事务的发送及提
 
 - 正常事务发送与提交阶段
 
-1. 客户端（生产者）发送一个`半消息`给MQServer（半消息是指消费者暂时不能消费的消息）
-2. 服务端响应消息写入结果，半消息发送成功
-3. 客户端开始执行本地事务
-4. 客户端根据本地事务的执行状态执行MQ的Commit或者Rollback操作
+1. 客户端开启事务
+2. 客户端（生产者）发送一个`半消息`给MQServer（半消息是指消费者暂时不能消费的消息）
+3. 服务端响应消息写入结果，半消息发送成功
+4. 客户端开始执行本地事务
+5. 客户端根据本地事务的执行状态执行MQ的Commit或者Rollback操作
 
 - 事务信息的补偿流程
 
@@ -387,13 +388,14 @@ RocketMQ实现事务消息主要分为两个阶段：正常事务的发送及提
 
 总结：如果两个服务之间需要保持操作的原子性，比如serviceA和serviceB都有各自的事务要执行
 
-<img src="https://raw.githubusercontent.com/syllr/image/main/uPic/2021100922343235BF92.jpg" alt="preview" style="zoom:67%;" />
+![RocketMQ事务消息流程](https://raw.githubusercontent.com/syllr/image/main/uPic/20211024235027719k6h.svg)
 
-* serviceA发送一个`半消息（用来表示serviceA的事务执行结果）`给MQServer，MQServer响应消息写入结果，半消息发送成功
-* serviceA执行本地事务
-* serviceA根据本地事务的执行状态执行MQ的commit或者Rollback操作
-* 当serviceA执行了MQ的commit操作之后
-* serviceB接收到serviceA的mq之后，执行serviceB的本地事务，如果serviceB的本地事务执行失败，需要业务兜底（比如转人工，或者job扫描重试）
+* ServiceA开启本地事务
+* ServiceA发送一个`半消息（用来表示serviceA的事务执行结果）`给MQServer，MQServer响应消息写入结果，半消息发送成功
+* ServiceA执行本地事务流程
+* ServiceA根据本地事务的执行状态执行MQ的commit或者Rollback操作
+* RocketMQ Broker接收到Commit之后，向ServiceB投递消息
+* ServiceB接收到mq消息之后，执行ServiceB的本地事务，如果ServiceB的本地事务执行失败，需要业务兜底（比如转人工，或者job扫描重试）
 
 ### RocketMQ事务流程关键
 
