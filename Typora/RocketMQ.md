@@ -388,7 +388,7 @@ RocketMQ实现事务消息主要分为两个阶段：正常事务的发送及提
 
 总结：如果两个服务之间需要保持操作的原子性，比如serviceA和serviceB都有各自的事务要执行
 
-![RocketMQ事务消息流程](https://raw.githubusercontent.com/syllr/image/main/uPic/20211024235027719k6h.svg)
+![RocketMQ事务消息流程](https://raw.githubusercontent.com/syllr/image/main/uPic/20211025080224ZjuzcD.svg)
 
 * ServiceA开启本地事务
 * ServiceA发送一个`半消息（用来表示serviceA的事务执行结果）`给MQServer，MQServer响应消息写入结果，半消息发送成功
