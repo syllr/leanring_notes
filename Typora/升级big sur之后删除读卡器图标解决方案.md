@@ -5,6 +5,10 @@
     * csrutil authenticated-root disable
 * 将系统文件挂载到一个可读的目录下
     * cd && mkdir mnt && sudo mount -o nobrowse -t apfs /dev/disk2s2 /Users/yutao/mnt
+    * 如果不行尝试disk2s1
+    * cd && mkdir mnt && sudo mount -o nobrowse -t apfs /dev/disk2s1 /Users/yutao/mnt
+    * 如果遇到报错可以使用diskutil fore unmount
+    * 如遇到 “mount_apfs: volume could not be mounted: Resource busy”问题，try this: “diskutil unmountDisk force /dev/disk#” ( whatever your disk# is)
     * cd mnt/System/Library/CoreServices/Menu\ Extras
     * sudo mv ExpressCard.menu ExpressCard.menu.back && sudo touch ExpressCard.menu
 * 需要将修改的系统文件写入到snapshot中 参考 https://www.zhihu.com/question/403361335
@@ -12,4 +16,3 @@
 * 去recovery模式开启sip
     * csrutil enable
     * csrutil authenticated-root enable
-
