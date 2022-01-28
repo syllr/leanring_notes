@@ -4,9 +4,12 @@
     * csrutil disable
     * csrutil authenticated-root disable
 * 将系统文件挂载到一个可读的目录下
-    * cd && mkdir mnt && sudo mount -o nobrowse -t apfs /dev/disk2s2 /Users/yutao/mnt
-    * 如果不行尝试disk2s1(如果没有清空过磁盘应该默认是disk2s1，具体是哪个磁盘可以在磁盘工具-现实所有设备 可以看到系统data是哪个盘符)
     * cd && mkdir mnt && sudo mount -o nobrowse -t apfs /dev/disk2s1 /Users/yutao/mnt
+    * 如果不行尝试disk2s2(如果没有清空过磁盘应该默认是disk2s1，具体是哪个磁盘可以在磁盘工具-现实所有设备 可以看到系统data是哪个盘符)
+    * ![image](https://user-images.githubusercontent.com/30232526/151608784-9916bc63-e45e-4a0c-a18d-37af1eebae91.png)
+    * 或者通过mount命令来看，如果是read-only的那个盘就是系统盘
+    * ![image](https://user-images.githubusercontent.com/30232526/151608939-762256e9-ecfc-4c8f-b84c-c40b2087da9a.png)
+    * cd && mkdir mnt && sudo mount -o nobrowse -t apfs /dev/disk2s2 /Users/yutao/mnt
     * 如果遇到报错可以使用diskutil fore unmount
     * 如遇到 “mount_apfs: volume could not be mounted: Resource busy”问题，try this: “diskutil unmountDisk force /dev/disk#” ( whatever your disk# is)
     * 将系统盘mount好之后需要干两件事，一是删除读卡器图标，二是更换壁纸，壁纸在iCloud里面存着，直接拉下来就好
